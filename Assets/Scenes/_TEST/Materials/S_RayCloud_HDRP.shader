@@ -56,8 +56,8 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                 //float2 screenPos    : TEXCOORD2;
                 float3 blendValues  : TEXCOORD2;
                 float3 lort         :TEXCOORD3;
-                float3 vertexW      : TEXCOORD4;
-                float3 vertexRaw    : TEXCOORD5;
+                //float3 vertexW      : TEXCOORD4;
+                //float3 vertexRaw    : TEXCOORD5;
             };
 
             Texture3D<float4> _CloudTexture;
@@ -117,19 +117,24 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
             v2f vert (appdata v) {
                 v2f o;
                 o.vertex = TransformObjectToHClip(v.vertex); //obj->wld->view->screen
-                o.vertexW = TransformObjectToWorld(v.vertex);
-                o.vertexRaw = v.vertex;
                 o.uvw = TRANSFORM_TEX(v.uvw, _CloudTexture);
-
                 
-                //o.viewVector = v.vertex - mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));
-                //o.viewVector = _WorldSpaceCameraPos.xyz - TransformObjectToWorld(v.vertex);
-                //o.viewVector = mul( _InvProjMatrix, float4(o.uvw * 2 - 1, 0, -1));
-                //o.viewVector = mul(UNITY_MATRIX_M, float4(o.viewVector,0));
-                float3 Cam_WP = _WorldSpaceCameraPos;
-                float3 viewVec = TransformObjectToWorld(v.vertex) - Cam_WP;
-                o.viewVector = v.vertex - mul(UNITY_MATRIX_I_M, _WorldSpaceCameraPos);
+                //OBJECT = MODEL
+                //WORLD = ?
+                //CAMERA = VIEW
+                //CLIP = PROJECTION
+                    
+                o.viewVector = v.vertex - mul(UNITY_MATRIX_I_M, float4(_WorldSpaceCameraPos,1));
                 
+                float3 vertexV = mul(UNITY_MATRIX_V, v.vertex);
+                o.viewVector = mul(UNITY_MATRIX_V, v.vertex);
+                //o.viewVector = o.vertex - TransformObjectToHClip(mul(UNITY_MATRIX_I_M, _WorldSpaceCameraPos));
+                
+               // o.viewVector = TransformObjectToHClip(o.vertex);
+               // o.viewVector = o.vertex - mul(UNITY_MATRIX_VP, _WorldSpaceCameraPos);
+              /*  o.ViewVector = mul(UNITY_)
+                o.viewVector = UNITY_MATRIX v.vertex - mul(UNITY_MATRIX_I_M, _WorldSpaceCameraPos);*/
+                //o.viewVector *= -1;
                 //o.viewVector = mul(UNITY_MATRIX_I_M, float4(viewVec.xy, 0 , -1));
                 //o.viewVector = mul(float4(o.vertex.xy + _TaaJitterStrength.xy, 1.0f, 1.0f), _PixelCoordToViewDirWS);
 
@@ -262,12 +267,24 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                 float3 ro = _WorldSpaceCameraPos; //ray origin
                 float3 rd = normalize(i.viewVector)*.01;
                 float3 uvw = i.lort;
-                float3 sampleDirection = normalize(i.viewVector);
+                float3 sampleDirection = i.viewVector;
                 
-             //   TransformObjectToWorld(i.vertexRaw) - _WorldSpaceCameraPos;
+
+                //OBJECT = MODEL        UNITY_MATRIX_M  UNITY_MATRIX_I_M
+                //WORLD = ? 
+                //CAMERA = VIEW         UNITY_MATRIX_V  UNITY_MATRIX_I_V
+                //CLIP = PROJECTION     UNITY_MATRIX_P  UNITY_MATRIX_I_P
+                //
+                //UNITY_MATRIX_VP
+                
+                //sampleDirection = ((sampleDirection-_cloudPos) / _cloudScale) + .5;
+                //sampleDirection = mul(UNITY_MATRIX_I_VP, sampleDirection);
+                //sampleDirection = TransformWorldToObject(sampleDirection);
+                
+                //TransformObjectToWorld(i.vertexRaw) - _WorldSpaceCameraPos;
                 //sampleDirection = mul(UNITY_MATRIX_I_M, i.vertexRaw) - _WorldSpaceCameraPos;
                 
-                sampleDirection = normalize(sampleDirection);
+                sampleDirection = normalize(sampleDirection);  
                 
                 float distTravelled = 0.0f;
                 float distExit = 1.5f;
@@ -281,8 +298,16 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                     
                     distTravelled += stepSize;
                 }
-
-                col.a = density;
+                if(density > 0)
+                {
+                    col.g = 1;
+                    col.a = density;
+                }
+                else
+                {
+                    col.r = 1;
+                    col.a = 0.02f;
+                }
                 return col;
             }
             ENDHLSL
