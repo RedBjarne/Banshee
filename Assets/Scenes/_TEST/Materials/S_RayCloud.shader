@@ -108,9 +108,9 @@ Shader "ShaderSandbox/S_RayCloud"
             v2f vert (appdata v) {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex.xyz);
-                o.uvw = TRANSFORM_TEX(v.uvw, _CloudTexture);
+                //o.uvw = TRANSFORM_TEX(v.uvw, _CloudTexture);
                 o.viewVector = v.vertex - mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));          
-                o.screenPos = ComputeScreenPos(o.vertex);
+                //o.screenPos = ComputeScreenPos(o.vertex);
 
                 float3 blend = {0.f, 0.f, 0.f};
                 float a = (_Time.x*_animSpeedL)%3;
@@ -267,6 +267,9 @@ Shader "ShaderSandbox/S_RayCloud"
                 float3 cloudCol = lightEnergy * _lightColor;
                 col.rgb  = lerp(cloudCol*_cloudColor, cloudCol, lightEnergy);
                 col.a = 1-transmittance;
+
+               // col.rgb = i.viewVector;
+               // col.a = 1;
                 return col;
             }
             ENDHLSL

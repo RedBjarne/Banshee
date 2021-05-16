@@ -24,7 +24,12 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
     
     SubShader
     {
-        Tags { "Queue"="Transparent" "RenderType"="Transparent" }
+        Tags
+        {
+            "Queue"="Transparent"
+            "RenderType"="Transparent"
+        }
+        
         ZWrite Off
         Blend SrcAlpha OneMinusSrcAlpha
         Cull front 
@@ -33,14 +38,15 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
         Pass
         {
             HLSLPROGRAM
+            
             #pragma vertex vert
             #pragma fragment frag
 
-            //#include "UnityCG.cginc"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
 
             #define VARYINGS_NEED_POSITION_WS
+            #define unity_WorldToObject unity_WorldToObject
             
             struct appdata
             {
@@ -51,12 +57,15 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
             struct v2f
             {
                 float4 vertex       : SV_POSITION;
-                float2 uvw          : TEXCOORD0;
+                //float2 uv           : TEXCOORD0;
                 float3 viewVector   : TEXCOORD1;
                 //float2 screenPos    : TEXCOORD2;
                 float3 blendValues  : TEXCOORD2;
-                float3 lort         :TEXCOORD3;
-                //float3 vertexW      : TEXCOORD4;
+                float3 ro           :TEXCOORD3;
+                float3 uvw          : TEXCOORD4;
+                float3 hitPos          : TEXCOORD5;
+                float3 world        : TEXCOORD6;
+                float3 rd           : TEXCOORD7;
                 //float3 vertexRaw    : TEXCOORD5;
             };
 
@@ -114,47 +123,8 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
 
             float4x4 _PixelCoordToViewDirWS;
             
-            v2f vert (appdata v) {
-                v2f o;
-                o.vertex = TransformObjectToHClip(v.vertex); //obj->wld->view->screen
-                o.uvw = TRANSFORM_TEX(v.uvw, _CloudTexture);
-                
-                //OBJECT = MODEL
-                //WORLD = ?
-                //CAMERA = VIEW
-                //CLIP = PROJECTION
-                    
-                o.viewVector = v.vertex - mul(UNITY_MATRIX_I_M, float4(_WorldSpaceCameraPos,1));
-                
-                float3 vertexV = mul(UNITY_MATRIX_V, v.vertex);
-                o.viewVector = mul(UNITY_MATRIX_V, v.vertex);
-                //o.viewVector = o.vertex - TransformObjectToHClip(mul(UNITY_MATRIX_I_M, _WorldSpaceCameraPos));
-                
-               // o.viewVector = TransformObjectToHClip(o.vertex);
-               // o.viewVector = o.vertex - mul(UNITY_MATRIX_VP, _WorldSpaceCameraPos);
-              /*  o.ViewVector = mul(UNITY_)
-                o.viewVector = UNITY_MATRIX v.vertex - mul(UNITY_MATRIX_I_M, _WorldSpaceCameraPos);*/
-                //o.viewVector *= -1;
-                //o.viewVector = mul(UNITY_MATRIX_I_M, float4(viewVec.xy, 0 , -1));
-                //o.viewVector = mul(float4(o.vertex.xy + _TaaJitterStrength.xy, 1.0f, 1.0f), _PixelCoordToViewDirWS);
-
-               
-                //o.viewVector = TransformObjectToWorld(v.vertex) - mul(UNITY_MATRIX_M, _WorldSpaceCameraPos);
-
-                //o.viewVector = v.vertex - _WorldSpaceCameraPos;
-                //o.viewVector = TransformObjectToWorld(o.viewVector);
-                //o.viewVector = mul(UNITY_MATRIX_I_V, float4(o.viewVector.xy, 0 , -1));
-                //o.viewVector = TransformObjectToWorldDir(o.viewVector);
-                //o.viewVector = TransformObjectToHClip(o.viewVector);
-                //o.viewVector = v.vertex - TransformWorldToObject(_WorldSpaceCameraPos);
-                
-                //o.viewVector = o.vertexW - _WorldSpaceCameraPos;
-
-                //o.viewVector = v.vertex - mul(UNITY_MATRIX_M, _WorldSpaceCameraPos); //view vector i object space
-                o.lort = v.uvw;
-                //float3 worldSpaceViewDir = _WorldSpaceCameraPos.xyz - worldPos;
-                //o.screenPos = ComputeScreenPos(o.vertex);
-
+            float3 getBlendValues()
+            {
                 float3 blend = {0.f, 0.f, 0.f};
                 float a = (_Time.x*_animSpeedL)%3;
                 if(a < 1)
@@ -177,9 +147,24 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                     blend.z = 1-sig;
                     blend.x = sig;
                 }
-                o.blendValues = blend;
+                return blend;
+            }
+            
+            v2f vert (appdata v) {
+                v2f o;
+                o.vertex = TransformObjectToHClip(v.vertex); //obj->wld->view->screen
+                o.uvw = v.uvw;
+                o.viewVector = v.vertex - mul(unity_WorldToObject, float4(_WorldSpaceCameraPos, 1));
+                
+                //OBJECT = MODEL
+                //WORLD = ?
+                //CAMERA = VIEW
+                //CLIP = PROJECTION
+
+                o.blendValues = getBlendValues();
                 return o;
             }
+
 
             float2 rayBoxDst(float3 ro, float3 rd)
             {
@@ -263,41 +248,33 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                 _blendValues = i.blendValues;
 
                 float4 col = 0;
+                                
+                float3 ro = _WorldSpaceCameraPos;     
+                //float3 rd = normalize(i.viewVector);
+                float3 sampleDirection = normalize(i.viewVector);
 
-                float3 ro = _WorldSpaceCameraPos; //ray origin
-                float3 rd = normalize(i.viewVector)*.01;
-                float3 uvw = i.lort;
-                float3 sampleDirection = i.viewVector;
-                
+                //float2 rayBoxInfo = rayBoxDst(ro, rd);
+                //float distToBox = rayBoxInfo.x;
+                float3 entryPoint = i.uvw;// + rd * distToBox;
 
                 //OBJECT = MODEL        UNITY_MATRIX_M  UNITY_MATRIX_I_M
                 //WORLD = ? 
                 //CAMERA = VIEW         UNITY_MATRIX_V  UNITY_MATRIX_I_V
                 //CLIP = PROJECTION     UNITY_MATRIX_P  UNITY_MATRIX_I_P
-                //
-                //UNITY_MATRIX_VP
-                
-                //sampleDirection = ((sampleDirection-_cloudPos) / _cloudScale) + .5;
-                //sampleDirection = mul(UNITY_MATRIX_I_VP, sampleDirection);
-                //sampleDirection = TransformWorldToObject(sampleDirection);
-                
-                //TransformObjectToWorld(i.vertexRaw) - _WorldSpaceCameraPos;
-                //sampleDirection = mul(UNITY_MATRIX_I_M, i.vertexRaw) - _WorldSpaceCameraPos;
-                
-                sampleDirection = normalize(sampleDirection);  
                 
                 float distTravelled = 0.0f;
                 float distExit = 1.5f;
-                const float stepSize = .05f;
+                const float stepSize = .01f;
                 float density = 0;
                 while (distTravelled < distExit)
                 {
-                    float3 sampleLocation = uvw + sampleDirection * distTravelled;
-                    float4 p = _CloudTexture.SampleLevel(sampler_CloudTexture, sampleLocation, 0);
-                    density += p.r*.1f;
+                    float3 samplePoint = entryPoint + sampleDirection * distTravelled;
+                    float4 p = _CloudTexture.SampleLevel(sampler_CloudTexture, samplePoint, 0);
+                    density += p.r*.02f;
                     
                     distTravelled += stepSize;
                 }
+                
                 if(density > 0)
                 {
                     col.g = 1;
@@ -308,6 +285,7 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                     col.r = 1;
                     col.a = 0.02f;
                 }
+
                 return col;
             }
             ENDHLSL

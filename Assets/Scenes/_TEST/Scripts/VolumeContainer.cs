@@ -52,7 +52,7 @@ public class VolumeContainer : MonoBehaviour
         float yPosMax = volumeDimensions.y / 2;
         float zPosMin = -volumeDimensions.z / 2;
         float zPosMax = volumeDimensions.z / 2;
-        
+
         verts[0] = new Vector3(xPosMin, yPosMin, zPosMin);
         verts[1] = new Vector3(xPosMax, yPosMin, zPosMin);
         verts[2] = new Vector3(xPosMin, yPosMax, zPosMin);

@@ -41,7 +41,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _CloudTexture:
-        m_Texture: {fileID: 11700000, guid: ffd38e58ea08cf646aaa538f48b8de60, type: 3}
+        m_Texture: {fileID: 11700000, guid: a781e03bcce3afb41817b67b20accf9b, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _CoatMaskMap:
