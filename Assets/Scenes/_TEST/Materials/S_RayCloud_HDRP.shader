@@ -2,7 +2,7 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
 {
     Properties
     {
-        [MainTexture][NoScaleOffset] _CloudTexture ("Cloud Texture", 3D) = "white" {}
+        [NoScaleOffset] _CloudTexture ("Cloud Texture", 3D) = "white" {}
         
         //cloud properties
         _cloudColor ("Cloud Tint", Color) = (1, 1, 1, 1)
@@ -20,6 +20,7 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
         _lightAbsorptionThroughCloud ("Light Absorbation Through Cloud", Range (0, 2)) = 0.75
         
         _debug ("debug", Range (0, 1)) = 0
+        _densitySteps ("density steps", Range (1, 100)) = 10
     }
     
     SubShader
@@ -45,7 +46,6 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
 
-            #define VARYINGS_NEED_POSITION_WS
             #define unity_WorldToObject unity_WorldToObject
             
             struct appdata
@@ -57,16 +57,10 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
             struct v2f
             {
                 float4 vertex       : SV_POSITION;
-                //float2 uv           : TEXCOORD0;
+                float3 uvw          : TEXCOORD0;
                 float3 viewVector   : TEXCOORD1;
-                //float2 screenPos    : TEXCOORD2;
-                float3 blendValues  : TEXCOORD2;
-                float3 ro           :TEXCOORD3;
-                float3 uvw          : TEXCOORD4;
-                float3 hitPos          : TEXCOORD5;
-                float3 world        : TEXCOORD6;
-                float3 rd           : TEXCOORD7;
-                //float3 vertexRaw    : TEXCOORD5;
+                float3 lightVector  : TEXCOORD2;
+                float3 blendValues  : TEXCOORD3;
             };
 
             Texture3D<float4> _CloudTexture;
@@ -106,6 +100,7 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
             float _lightTraceDist;
             
             float _debug;
+            float _densitySteps;
              
             float sigOffset = .5;
             float sigContrast = 5;
@@ -161,6 +156,8 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                 //CAMERA = VIEW
                 //CLIP = PROJECTION
 
+                o.lightVector = v.vertex - mul(unity_WorldToObject, float4(_lightPos, 1));
+
                 o.blendValues = getBlendValues();
                 return o;
             }
@@ -180,6 +177,40 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                 float dstInsideBox = max(0, dstB - dstToBox);
                 return float2(dstToBox, dstInsideBox);
             }
+            
+            float rayBoxLength(float3 ro, float3 rd)
+            {
+                rd *= 2; //make sure ray is longer than box
+                //hvilken akse er den korteste
+                float ratio = 0;
+                if(rd.x > rd.y)
+                {
+                    //x er den største
+                    if(rd.z > rd.x)
+                    {
+                        //z er den største
+                    }
+                    //x er den største
+                } else
+                {
+                    //y er den største
+                    if(rd.z > rd.y)
+                    {
+                        //z er den største
+                    }
+                    //y er den største
+                }
+
+                rd *= ratio;
+
+                //exit
+                //find længdem af rd.
+                
+
+                
+                //
+                //find dens scale i forhold til 1 
+            }
            
             // Henyey-Greenstein
             float hg(float a, float g) {
@@ -195,11 +226,12 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                 return _baseBrightness + hgBlend * _phaseFactor;
             }
 
-            float sampleDensity(float3 pos)
+            float sampleDensity(float3 samplePoint)
             {
-                float3 uvw = ((pos-_cloudPos) / _cloudScale) + .5;
-                float4 p = _CloudTexture.SampleLevel(sampler_CloudTexture, uvw, 0);
-
+                //float3 uvw = ((pos-_cloudPos) / _cloudScale) + .5;
+                //float4 p = _CloudTexture.SampleLevel(sampler_CloudTexture, uvw, 0);
+                float4 p = _CloudTexture.SampleLevel(sampler_CloudTexture, samplePoint, 0);
+                
                 //blend shapes
                 float d = 0;
                 d += (p.r * _blendValues.x);
@@ -207,8 +239,8 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                 d += (p.b * _blendValues.z);
 
                 //noise
-                if(d > 0) {
-                    float3 uvw_n = uvw;
+                /*if(d > 0) {
+                    float3 uvw_n = samplePoint;
                     uvw_n.x -= _Time.x*_animSpeedS;
                     uvw_n.y -= _Time.x*_animSpeedS;
                     uvw_n.z += _Time.x*_animSpeedS;
@@ -217,22 +249,23 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                     
                     d -= n * _densityNoise;
                     return d;
-                }
+                }*/
                 
                 return d;
             }
 
-            float sampleLight(float3 ro)
+            float sampleLight(float3 ro, float3 lightDirection)
             {
-                float3 dirToLight = normalize(_lightPos.xyz-_cloudPos.xyz)*.01;
-                float dstInsideBox = rayBoxDst(ro, dirToLight).y;
+                //float3 dirToLight = normalize(_lightPos.xyz-_cloudPos.xyz)*.01;
+                //float dstInsideBox = rayBoxDst(ro, dirToLight).y;
+                float dstInsideBox = rayBoxDst(ro, lightDirection).y;
                 
                 int numSteps = 8;
                 float stepSize = (dstInsideBox * _lightTraceDist)/numSteps;
                 float totalDensity = 0;
                 
                 for (int step = 0; step < numSteps; step++) {
-                    ro += dirToLight * stepSize;
+                    ro += lightDirection * stepSize;
                     totalDensity += max(0, sampleDensity(ro) * stepSize);
                 }
 
@@ -250,31 +283,75 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                 float4 col = 0;
                                 
                 float3 ro = _WorldSpaceCameraPos;     
-                //float3 rd = normalize(i.viewVector);
                 float3 sampleDirection = normalize(i.viewVector);
+                float3 lightDirection = normalize(i.lightVector);
 
-                //float2 rayBoxInfo = rayBoxDst(ro, rd);
-                //float distToBox = rayBoxInfo.x;
+                //float3 light = mul(unity_WorldToObject, float4(_lightPos.xyz, 1));
+                //float3 cloud = mul(unity_WorldToObject, float4(_cloudPos.xyz, 1));
+                //float3 lightDirection = normalize(light.xyz - cloud.xyz);
+                
+
+                float2 rayBoxInfo = rayBoxDst(ro, sampleDirection*.01f);
+                float distToBox = rayBoxInfo.x;
+                float distInsideBox = rayBoxInfo.y;
+                
                 float3 entryPoint = i.uvw;// + rd * distToBox;
 
                 //OBJECT = MODEL        UNITY_MATRIX_M  UNITY_MATRIX_I_M
                 //WORLD = ? 
                 //CAMERA = VIEW         UNITY_MATRIX_V  UNITY_MATRIX_I_V
                 //CLIP = PROJECTION     UNITY_MATRIX_P  UNITY_MATRIX_I_P
+
+                float cosAngle = dot(sampleDirection, lightDirection);
+                float phaseVal = phase(cosAngle);
+                
                 
                 float distTravelled = 0.0f;
-                float distExit = 1.5f;
-                const float stepSize = .01f;
+                //float distExit = 1.5f;
+                //const float stepSize = .02f;
+                
+                float stepSize = distInsideBox/_densitySteps;
+                
+                float distExit = distInsideBox;
+                
+                //float density = 0;
+                float transmittance = 1;
+                float3 lightEnergy = 0;
+
                 float density = 0;
+                
                 while (distTravelled < distExit)
                 {
-                    float3 samplePoint = entryPoint + sampleDirection * distTravelled;
+                   /* float3 samplePoint = entryPoint + sampleDirection * distTravelled;
                     float4 p = _CloudTexture.SampleLevel(sampler_CloudTexture, samplePoint, 0);
                     density += p.r*.02f;
                     
+                    distTravelled += stepSize;*/
+
+                    float3 samplePoint = entryPoint + sampleDirection * distTravelled;
+                    float localDensity = sampleDensity(samplePoint) * _density;
+                    density += localDensity;
+                    /*
+                    if(density > 0) {
+                        float lightTransmittance = sampleLight(samplePoint, lightDirection) * _density;
+                        lightEnergy += density * 1 * transmittance * lightTransmittance * phaseVal;
+                        transmittance *= exp(-density * stepSize * _lightAbsorptionThroughCloud);
+                        
+                        if (transmittance < 0.01) {
+                            break;
+                        }
+                    }
+                    */
                     distTravelled += stepSize;
                 }
                 
+                float3 cloudCol = lightEnergy * _lightColor;
+                col.rgb  = lerp(cloudCol*_cloudColor, cloudCol, lightEnergy);
+                col.a = 1-transmittance;
+
+                col.rgb = 1;
+                col.a = density;
+                /*
                 if(density > 0)
                 {
                     col.g = 1;
@@ -284,8 +361,10 @@ Shader "ShaderSandbox/S_RayCloud_HDRP"
                 {
                     col.r = 1;
                     col.a = 0.02f;
-                }
+                }*/
 
+               /* col.rgb = lightDirection;
+                col.a = 1;*/
                 return col;
             }
             ENDHLSL

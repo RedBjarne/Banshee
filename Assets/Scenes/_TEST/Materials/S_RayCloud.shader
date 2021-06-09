@@ -179,7 +179,7 @@ Shader "ShaderSandbox/S_RayCloud"
                 d += (p.b * _blendValues.z);
 
                 //noise
-                if(d > 0) {
+               /* if(d > 0) {
                     float3 uvw_n = uvw;
                     uvw_n.x -= _Time.x*_animSpeedS;
                     uvw_n.y -= _Time.x*_animSpeedS;
@@ -189,7 +189,7 @@ Shader "ShaderSandbox/S_RayCloud"
                     
                     d -= n * _densityNoise;
                     return d;
-                }
+                }*/
                 
                 return d;
             }
@@ -239,7 +239,7 @@ Shader "ShaderSandbox/S_RayCloud"
 
                 float distTravelled = 0.0f;
                 //const float stepSize = dstInsideBox/numSteps;
-                float numSteps = 1.f;
+                //float numSteps = 1.f;
                 const float stepSize = .2f; //boxIntersectionLength/32.f;
                 
                 float distExit = distInsideBox;
@@ -250,10 +250,10 @@ Shader "ShaderSandbox/S_RayCloud"
                 
                 while (distTravelled < distExit) {
                     ro = entryPoint + rd * distTravelled;
-                    float density = sampleDensity(ro)*_density*numSteps;
+                    float density = sampleDensity(ro) * _density; //*numSteps;
                     
                     if(density > 0) {
-                        float lightTransmittance = sampleLight(ro)*_density*numSteps;
+                        float lightTransmittance = sampleLight(ro) * _density; //*numSteps;
                         lightEnergy += density * 1 * transmittance * lightTransmittance * phaseVal;
                         transmittance *= exp(-density * stepSize * _lightAbsorptionThroughCloud);
                         
@@ -266,10 +266,11 @@ Shader "ShaderSandbox/S_RayCloud"
                 
                 float3 cloudCol = lightEnergy * _lightColor;
                 col.rgb  = lerp(cloudCol*_cloudColor, cloudCol, lightEnergy);
+                col.rgb = lightEnergy;
                 col.a = 1-transmittance;
 
-               // col.rgb = i.viewVector;
-               // col.a = 1;
+               /* col.rgb = ld;
+                col.a = 1;*/
                 return col;
             }
             ENDHLSL

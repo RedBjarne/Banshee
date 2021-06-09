@@ -25,17 +25,18 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _animSpeedL: 7
-    - _animSpeedS: 0.75
-    - _baseBrightness: 1
-    - _darknessThreshold: 0.15
+    - _animSpeedL: 3.3
+    - _animSpeedS: 1.95
+    - _baseBrightness: 1.18
+    - _darknessThreshold: 0.119
     - _debug: 0
-    - _density: 1
-    - _densityNoise: 0.5
+    - _density: 0.369
+    - _densityNoise: 0.395
+    - _densitySteps: 10
     - _lightAbsorptionThroughCloud: 0.75
-    - _lightAbsorptionTowardSun: 1.21
-    - _lightTraceDist: 1
+    - _lightAbsorptionTowardSun: 0.24
+    - _lightTraceDist: 0.194
     m_Colors:
-    - _cloudColor: {r: 1, g: 1, b: 1, a: 1}
-    - _lightColor: {r: 1, g: 1, b: 1, a: 1}
+    - _cloudColor: {r: 0.7137255, g: 0.85882354, b: 1, a: 1}
+    - _lightColor: {r: 1, g: 0.94509804, b: 0.79607844, a: 1}
   m_BuildTextureStacks: []

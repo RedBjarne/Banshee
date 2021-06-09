@@ -1,5 +1,7 @@
 using UnityEngine;
 
+
+[ExecuteInEditMode]
 public class VolumeContainer : MonoBehaviour
 {
     public Vector3 volumeDimensions = new Vector3(1f, 1f, 1f);
@@ -181,7 +183,7 @@ public class VolumeContainer : MonoBehaviour
             Vector3 volumePosition = gameObject.transform.position;
             _matPropBlock.SetVector("_cloudPos", volumePosition);
             _matPropBlock.SetVector("_cloudScale", volumeDimensions);
-
+            
             Vector3 halfScale = volumeDimensions / 2;
             _matPropBlock.SetVector("_bbMin", volumePosition - halfScale);
             _matPropBlock.SetVector("_bbMax", volumePosition + halfScale);
